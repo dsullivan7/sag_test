@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import math
 
 from sklearn.utils import shuffle
+from sklearn.base import clone
 from sklearn.linear_model import (SGDClassifier, SAGClassifier,
                                   SGDRegressor, SAGRegressor)
 
@@ -41,17 +42,16 @@ pobj = []
 
 n_iter_range = list(range(1, 100, 5))
 clfs = [
-    ("SGDClassifier", SGDClassifier, [], []),
-    ("SAGClassifier", SAGClassifier, [], []),
+    ("SGDClassifier", SGDClassifier(eta0=.05, alpha=alpha, loss='log', learning_rate='constant'), [], []),
+    ("ASGDClassifier", SGDClassifier(eta0=.05, alpha=alpha, loss='log', learning_rate='constant', average=True), [], []),
+    ("SAGClassifier", SAGClassifier(eta0='auto', alpha=alpha), [], []),
     ]
 plt.close('all')
 
-for name, clf_constructor, pobj, score in clfs:
+for name, clf, pobj, score in clfs:
     for n_iter in n_iter_range:
-        clf = clf_constructor(eta0=.05, alpha=alpha,
-                              n_iter=n_iter, random_state=42)
-        clf.loss = "log"
-        clf.learning_rate = "constant"
+        clf = clone(clf)
+        clf.set_params(n_iter=n_iter, random_state=42)
         clf.fit(X_train, y_train)
         w = clf.coef_.ravel()
         this_pobj = np.mean(np.log(1. + np.exp(-y_train * (X_train.dot(w) +
