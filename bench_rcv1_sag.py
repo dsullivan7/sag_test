@@ -4,6 +4,7 @@ from scipy import io
 import matplotlib.pyplot as plt
 import math
 
+from sklearn.utils import shuffle
 from sklearn.linear_model import (SGDClassifier, SAGClassifier,
                                   SGDRegressor, SAGRegressor)
 
@@ -11,7 +12,7 @@ data = io.loadmat('rcv1_train.binary.mat')
 # data = io.loadmat('covtype.libsvm.binary.mat')
 
 X, y = data['X'], data['y'].ravel()
-
+X, y = shuffle(X, y)
 # shuffle to balance the data
 # rng = np.random.RandomState(42)
 # order = np.argsort(rng.randn(len(X)))
@@ -30,11 +31,12 @@ y = y.astype(np.int)
 
 # Split data
 n_samples, n_features = X.shape
-X_train, y_train, X_test, y_test = \
-    X[:n_samples // 2], y[:n_samples // 2], \
-    X[n_samples // 2:], y[n_samples // 2:]
+# X_train, y_train, X_test, y_test = \
+#     X[:n_samples // 2], y[:n_samples // 2], \
+#     X[n_samples // 2:], y[n_samples // 2:]
+X_train, y_train, X_test, y_test = X, y, X, y
 
-alpha = .00001
+alpha = .0000001
 pobj = []
 
 n_iter_range = list(range(1, 100, 5))
@@ -46,7 +48,7 @@ plt.close('all')
 
 for name, clf_constructor, pobj, score in clfs:
     for n_iter in n_iter_range:
-        clf = clf_constructor(eta0=.01, alpha=alpha,
+        clf = clf_constructor(eta0=.05, alpha=alpha,
                               n_iter=n_iter, random_state=42)
         clf.loss = "log"
         clf.learning_rate = "constant"
