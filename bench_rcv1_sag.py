@@ -13,7 +13,7 @@ data = io.loadmat('rcv1_train.binary.mat')
 # data = io.loadmat('covtype.libsvm.binary.mat')
 
 X, y = data['X'], data['y'].ravel()
-X, y = shuffle(X, y)
+X, y = shuffle(X, y, random_state=42)
 # shuffle to balance the data
 # rng = np.random.RandomState(42)
 # order = np.argsort(rng.randn(len(X)))
@@ -32,13 +32,15 @@ y = y.astype(np.int)
 
 # Split data
 n_samples, n_features = X.shape
-# X_train, y_train, X_test, y_test = \
-#     X[:n_samples // 2], y[:n_samples // 2], \
-#     X[n_samples // 2:], y[n_samples // 2:]
-X_train, y_train, X_test, y_test = X, y, X, y
+training_percent = .5
+training_num = int(training_percent * n_samples)
+X_train, y_train, X_test, y_test = \
+    X[:training_num], y[:training_num], \
+    X[training_num:], y[training_num:]
+# X_train, y_train, X_test, y_test = X, y, X, y
 
 alpha = .0000001
-optimal = .008873
+# optimal = .008873
 pobj = []
 
 n_iter_range = list(range(1, 100, 5))
@@ -65,15 +67,18 @@ for name, clf, pobj, score, seconds in clfs:
         this_pobj = np.mean(np.log(1. + np.exp(-y_train * (X_train.dot(w) +
                                                            clf.intercept_))))
         this_pobj += alpha * np.dot(w, w) / 2.
-        pobj.append(math.log(this_pobj - optimal))
+        # pobj.append(math.log(this_pobj - optimal))
+        pobj.append(math.log(this_pobj))
         score.append(clf.score(X_test, y_test))
 
         print(name + " %1.6f %f" % (clf.score(X_test, y_test), this_pobj))
 
     print("")
-    plt.plot(seconds[1:], pobj, label=name)
+    # plt.plot(seconds[1:], pobj, label=name)
+    # plt.plot(seconds[1:], score, label=name)
+    plt.plot(n_iter_range, score, label=name)
 
-plt.legend(loc="upper right")
-plt.xlabel("seconds")
+plt.legend(loc="lower right")
+plt.xlabel("n_iter")
 plt.ylabel("pobj")
 plt.show()
