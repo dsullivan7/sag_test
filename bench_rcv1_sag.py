@@ -3,7 +3,7 @@ from scipy import io
 
 import matplotlib.pyplot as plt
 import math
-
+import time
 from sklearn.utils import shuffle
 from sklearn.base import clone
 from sklearn.linear_model import (SGDClassifier, SAGClassifier,
@@ -38,34 +38,42 @@ n_samples, n_features = X.shape
 X_train, y_train, X_test, y_test = X, y, X, y
 
 alpha = .0000001
+optimal = .008873
 pobj = []
 
 n_iter_range = list(range(1, 100, 5))
+# n_iter_range = list([600])
 clfs = [
-    ("SGDClassifier", SGDClassifier(eta0=.05, alpha=alpha, loss='log', learning_rate='constant'), [], []),
-    ("ASGDClassifier", SGDClassifier(eta0=.05, alpha=alpha, loss='log', learning_rate='constant', average=True), [], []),
-    ("SAGClassifier", SAGClassifier(eta0='auto', alpha=alpha), [], []),
+    ("SGDClassifier", SGDClassifier(eta0=4.0, alpha=alpha, loss='log',
+     learning_rate='constant'), [], [], [0]),
+    ("ASGDClassifier", SGDClassifier(eta0=4.0, alpha=alpha, loss='log',
+     learning_rate='constant', average=True), [], [], [0]),
+    ("SAGClassifier", SAGClassifier(eta0='auto', alpha=alpha), [], [], [0]),
     ]
 plt.close('all')
 
-for name, clf, pobj, score in clfs:
-    for n_iter in n_iter_range:
+for name, clf, pobj, score, seconds in clfs:
+    for i, n_iter in enumerate(n_iter_range):
         clf = clone(clf)
         clf.set_params(n_iter=n_iter, random_state=42)
+        t1 = time.time()
         clf.fit(X_train, y_train)
+        t2 = time.time()
+        seconds.append(seconds[i] + t2 - t1)
+
         w = clf.coef_.ravel()
         this_pobj = np.mean(np.log(1. + np.exp(-y_train * (X_train.dot(w) +
                                                            clf.intercept_))))
         this_pobj += alpha * np.dot(w, w) / 2.
-        pobj.append(math.log(this_pobj))
+        pobj.append(math.log(this_pobj - optimal))
         score.append(clf.score(X_test, y_test))
 
         print(name + " %1.6f %f" % (clf.score(X_test, y_test), this_pobj))
 
     print("")
-    plt.plot(n_iter_range, pobj, label=name)
+    plt.plot(seconds[1:], pobj, label=name)
 
 plt.legend(loc="upper right")
-plt.xlabel("n_iter")
+plt.xlabel("seconds")
 plt.ylabel("pobj")
 plt.show()
