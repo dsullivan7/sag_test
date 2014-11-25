@@ -9,8 +9,8 @@ from sklearn.base import clone
 from sklearn.linear_model import (SGDClassifier, SAGClassifier,
                                   SGDRegressor, SAGRegressor)
 
-data = io.loadmat('rcv1_train.binary.mat')
-# data = io.loadmat('covtype.libsvm.binary.mat')
+# data = io.loadmat('rcv1_train.binary.mat')
+data = io.loadmat('covtype.libsvm.binary.mat')
 
 X, y = data['X'], data['y'].ravel()
 X, y = shuffle(X, y, random_state=42)
@@ -20,7 +20,7 @@ X, y = shuffle(X, y, random_state=42)
 # X, y = X[order], y[order]
 
 # subsample so it's fast
-# X, y = X[:20000].copy(), y[:20000].copy()
+X, y = X[:2000].copy(), y[:2000].copy()
 
 # cast for sklearn
 X = X.astype(np.float64)
@@ -39,20 +39,32 @@ X_train, y_train, X_test, y_test = \
     X[training_num:], y[training_num:]
 # X_train, y_train, X_test, y_test = X, y, X, y
 
-alpha = .0000001
-# optimal = .008873
+# alpha = .0000001
+alpha = .01
 pobj = []
 
-n_iter_range = list(range(1, 100, 5))
+# n_iter_range = list(range(1, 100, 5))
+n_iter_range = list(range(1, 500, 50))
 # n_iter_range = list([600])
 clfs = [
-    ("SGDClassifier", SGDClassifier(eta0=4.0, alpha=alpha, loss='log',
-     learning_rate='constant'), [], [], [0]),
-    ("ASGDClassifier", SGDClassifier(eta0=4.0, alpha=alpha, loss='log',
-     learning_rate='constant', average=True), [], [], [0]),
+    # ("SGDClassifier", SGDClassifier(eta0=4.0, alpha=alpha, loss='log',
+    #  learning_rate='constant'), [], [], [0]),
+    # ("ASGDClassifier", SGDClassifier(eta0=4.0, alpha=alpha, loss='log',
+    #  learning_rate='constant', average=True), [], [], [0]),
     ("SAGClassifier", SAGClassifier(eta0='auto', alpha=alpha), [], [], [0]),
     ]
 plt.close('all')
+
+def get_pobj(clf):
+    w = clf.coef_.ravel()
+    p = np.mean(np.log(1. + np.exp(-y_train * (X_train.dot(w) +
+                                                       clf.intercept_))))
+    p += alpha * np.dot(w, w) / 2.
+    return p
+
+print('computing pobj optimal')
+pobj_opt = get_pobj(SAGClassifier(eta0='auto', alpha=alpha, n_iter=500).fit(X_train, y_train))
+print('done !')
 
 for name, clf, pobj, score, seconds in clfs:
     for i, n_iter in enumerate(n_iter_range):
@@ -74,9 +86,9 @@ for name, clf, pobj, score, seconds in clfs:
         print(name + " %1.6f %f" % (clf.score(X_test, y_test), this_pobj))
 
     print("")
-    # plt.plot(seconds[1:], pobj, label=name)
+    plt.plot(seconds[1:], pobj, label=name)
     # plt.plot(seconds[1:], score, label=name)
-    plt.plot(n_iter_range, score, label=name)
+    # plt.plot(n_iter_range, score, label=name)
 
 plt.legend(loc="lower right")
 plt.xlabel("n_iter")
