@@ -13,19 +13,20 @@ def log_dloss(p, y):
     return -y / (math.exp(z) + 1.0)
 
 
-def sag(X, y, eta, alpha, n_iter=5,
-        dloss=log_dloss):
+def sag(X, y, eta, alpha, n_iter=5, dloss=log_dloss):
     n_samples, n_features = X.shape[0], X.shape[1]
 
-    weights = np.zeros(X.shape[1])
-    sum_gradient = np.zeros(X.shape[1])
+    weights = np.zeros(n_features)
+    sum_gradient = np.zeros(n_features)
     gradient_memory = np.zeros((n_samples, n_features))
     intercept = 0.0
     seen = set()
 
+    rng = np.random.RandomState(42)
+
     for i in range(n_iter * n_samples):
-        # idx = int(rng.rand(1) * n_samples)
-        idx = i % n_samples
+        idx = int(rng.rand(1) * n_samples)
+        # idx = i % n_samples
         entry = X[idx]
         seen.add(idx)
         p = np.dot(entry, weights) + intercept
