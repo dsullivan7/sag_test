@@ -15,13 +15,9 @@ data = io.loadmat('covtype.libsvm.binary.mat')
 
 X, y = data['X'], data['y'].ravel()
 X, y = shuffle(X, y, random_state=42)
-# shuffle to balance the data
-# rng = np.random.RandomState(42)
-# order = np.argsort(rng.randn(len(X)))
-# X, y = X[order], y[order]
 
 # subsample so it's fast
-X, y = X[:2000].copy(), y[:2000].copy()
+X, y = X[:100000].copy(), y[:100000].copy()
 
 # cast for sklearn
 X = X.astype(np.float64)
@@ -33,7 +29,7 @@ y[y == 2] = 1
 
 # Split data
 n_samples, n_features = X.shape
-training_percent = .5
+training_percent = .7
 training_num = int(training_percent * n_samples)
 X_train, y_train, X_test, y_test = \
     X[:training_num], y[:training_num], \
@@ -41,20 +37,23 @@ X_train, y_train, X_test, y_test = \
 # X_train, y_train, X_test, y_test = X, y, X, y
 
 # alpha = .0000001
+# eta = 4.0
+
 alpha = .01
 eta = .00000004
 pobj = []
 
-# n_iter_range = list(range(1, 100, 5))
+# n_iter_range = list(range(1, 50, 5))
+n_iter_range = list(range(1, 100, 5))
 # n_iter_range = list(range(1, 500, 50))
-n_iter_range = list([1, 2, 50])
+
 
 clfs = [
-    # ("SGDClassifier", SGDClassifier(eta0=.00000000001, alpha=alpha, loss='log',
-    #  learning_rate='constant'), [], [], [0]),
-    # ("ASGDClassifier", SGDClassifier(eta0=4.0, alpha=alpha, loss='log',
-    #  learning_rate='constant', average=True), [], [], [0]),
-    ("SAGClassifier", SAGClassifier(eta0=eta, alpha=alpha), [], [], [0]),
+    ("SGDClassifier", SGDClassifier(eta0=eta, alpha=alpha, loss='log',
+     learning_rate='constant'), [], [], [0]),
+    ("ASGDClassifier", SGDClassifier(eta0=eta, alpha=alpha, loss='log',
+     learning_rate='constant', average=True), [], [], [0]),
+    ("SAGClassifier", SAGClassifier(eta0='auto', alpha=alpha, random_state=42), [], [], [0]),
     ]
 plt.close('all')
 
@@ -65,54 +64,36 @@ def get_pobj(clf):
     p += alpha * np.dot(w, w) / 2.
     return p
 
-# print('computing pobj optimal')
-# pobj_opt = get_pobj(SAGClassifier(eta0='auto', alpha=alpha, n_iter=500).fit(X_train, y_train))
-# print('done !')
+print('computing pobj optimal')
+pobj_opt = get_pobj(SAGClassifier(eta0='auto',
+                                  alpha=alpha,
+                                  n_iter=100).fit(X_train, y_train))
+print('done !', pobj_opt)
+# pobj_opt = 0.0
 
-pobj = []
-seconds = [0]
-for i, n_iter in enumerate(n_iter_range):
-    t1 = time.time()
-    w, intercept = pure_sag.sag(X_train, y_train, eta=eta, alpha=alpha, n_iter=n_iter)
-    t2 = time.time()
-    seconds.append(seconds[i] + t2 - t1)
+for name, clf, pobj, score, seconds in clfs:
+    for i, n_iter in enumerate(n_iter_range):
+        clf = clone(clf)
+        clf.set_params(n_iter=n_iter, random_state=42)
+        t1 = time.time()
+        clf.fit(X_train, y_train)
+        t2 = time.time()
+        seconds.append(seconds[i] + t2 - t1)
 
-    this_pobj = np.mean(np.log(1. + np.exp(-y_train * (X_train.dot(w) +
-                                                       intercept))))
-    this_pobj += alpha * np.dot(w, w) / 2.
-    # pobj.append(math.log(this_pobj - optimal))
-    pobj.append(math.log(this_pobj))
-    # score.append(clf.score(X_test, y_test))
+        this_pobj = get_pobj(clf)
 
-    print("Pure Python %1.6f" % (this_pobj))
+        pobj.append(math.log10(this_pobj - pobj_opt))
+        score.append(clf.score(X_test, y_test))
 
-# for name, clf, pobj, score, seconds in clfs:
-#     for i, n_iter in enumerate(n_iter_range):
-#         clf = clone(clf)
-#         clf.set_params(n_iter=n_iter, random_state=42)
-#         t1 = time.time()
-#         clf.fit(X_train, y_train)
-#         t2 = time.time()
-#         seconds.append(seconds[i] + t2 - t1)
+        print(name + " %1.6f %1.16f" % (clf.score(X_test, y_test), this_pobj))
 
-#         w = clf.coef_.ravel()
-#         this_pobj = np.mean(np.log(1. + np.exp(-y_train * (X_train.dot(w) +
-#                                                            clf.intercept_))))
-#         this_pobj += alpha * np.dot(w, w) / 2.
-#         # pobj.append(math.log(this_pobj - optimal))
-#         pobj.append(math.log(this_pobj))
-#         score.append(clf.score(X_test, y_test))
-
-#         # print(name + " %1.6f %f" % (clf.score(X_test, y_test), this_pobj))
-#         print(name + " %1.6f" % (this_pobj))
-
-#     print("")
-#     plt.plot(seconds[1:], pobj, label=name)
+    print("")
+    # plt.plot(n_iter_range, pobj, label=name)
+    plt.plot(seconds[1:], pobj, label=name)
     # plt.plot(seconds[1:], score, label=name)
     # plt.plot(n_iter_range, score, label=name)
 
-plt.plot(seconds[1:], pobj, label="Pure Python")
-plt.legend(loc="lower right")
-plt.xlabel("n_iter")
-plt.ylabel("pobj")
-# plt.show()
+plt.legend(loc="upper right")
+plt.xlabel("time (seconds)")
+plt.ylabel("log10(pobj - pogj_opt)")
+plt.show()
