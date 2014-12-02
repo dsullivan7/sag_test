@@ -19,7 +19,8 @@ X, y = shuffle(X, y, random_state=42)
 
 # subsample so it's fast
 # X, y = X[:100000].copy(), y[:100000].copy()
-X, y = X[:10000].copy(), y[:10000].copy()
+# X, y = X[:10000].copy(), y[:10000].copy()
+# X, y = X[:10000].copy(), y[:10000].copy()
 
 # cast for sklearn
 X = X.astype(np.float64)
@@ -31,8 +32,8 @@ y[y == 2] = 1
 
 # Split data
 n_samples, n_features = X.shape
-training_percent = .7
-training_num = int(training_percent * n_samples)
+# training_percent = .7
+# training_num = int(training_percent * n_samples)
 # X_train, y_train, X_test, y_test = \
 #     X[:training_num], y[:training_num], \
 #     X[training_num:], y[training_num:]
@@ -41,7 +42,7 @@ X_train, y_train = X, y
 # alpha = .0000001
 # eta = 4.0
 
-alpha = .01
+alpha = 1.0 / n_samples
 eta = .00000004
 pobj = []
 
@@ -57,7 +58,7 @@ clfs = [
     # ("ASGDClassifier", SGDClassifier(eta0=eta, alpha=alpha, loss='log',
     #  learning_rate='constant', average=True), [], [], [], []),
     ("SAGClassifier", SAGClassifier(eta0='auto', alpha=alpha, random_state=42,
-                                    max_iter=100000, verbose=True), [], [], [], []),
+                                    max_iter=20), [], [], [], []),
     ]
 plt.close('all')
 
@@ -77,26 +78,36 @@ def get_pobj(clf):
 # print('done !', pobj_opt)
 # pobj_opt = 0.0
 
-for name, clf, pobj, score, std, seconds in clfs:
-    for i, tol in enumerate(tol_range):
-        print("tol:", tol)
-        clf = clone(clf)
-        clf.set_params(tol=tol, random_state=42)
-        scores = cross_validation.cross_val_score(clf, X, y, cv=4)
-        print("score mean:", scores.mean())
-        print("std:", scores.std())
-        print("")
-        print("")
-        score.append(scores.mean())
-        std.append(scores.std())
+# for name, clf, pobj, score, std, seconds in clfs:
+#     for i, tol in enumerate(tol_range):
+#         print("tol:", tol)
+#         clf = clone(clf)
+#         clf.set_params(tol=tol, random_state=42)
+#         scores = cross_validation.cross_val_score(clf, X, y, cv=4)
+#         print("score mean:", scores.mean())
+#         print("std:", scores.std())
+#         print("")
+#         print("")
+#         score.append(scores.mean())
+#         std.append(scores.std())
 
+#     print("")
+
+for name, clf, pobj, score, std, seconds in clfs:
+    clf = clone(clf)
+    clf.set_params(random_state=42)
+    start = time.time()
+    clf.fit(X, y)
+    end = time.time()
+    print("the time to fit:", end - start)
+    print("pobj", get_pobj(clf))
     print("")
 
-for name, clf, pobj, score, std, seconds in clfs:
-    plt.errorbar(-log_tols, score, std, label=name)
-    plt.legend(loc="lower right")
-    plt.xlabel("log10(tol)")
-    plt.ylabel("mean cv 4 score + std")
-plt.xlim([1, 5])
-plt.show()
+# for name, clf, pobj, score, std, seconds in clfs:
+#     plt.errorbar(-log_tols, score, std, label=name)
+#     plt.legend(loc="lower right")
+#     plt.xlabel("-log10(tol)")
+#     plt.ylabel("mean cv 4 score + std")
+# plt.xlim([1, 5])
+# plt.show()
 # plt.close('all')
