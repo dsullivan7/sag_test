@@ -19,7 +19,11 @@ def sag(X, y, eta, alpha, n_iter=5, fit_intercept=True, dloss=log_dloss):
     weights = np.zeros(n_features)
     sum_gradient = np.zeros(n_features)
     gradient_memory = np.zeros((n_samples, n_features))
+
     intercept = 0.0
+    intercept_sum_gradient = 0.0
+    intercept_gradient_memory = np.zeros(n_samples)
+
     seen = set()
 
     rng = np.random.RandomState(42)
@@ -42,7 +46,9 @@ def sag(X, y, eta, alpha, n_iter=5, fit_intercept=True, dloss=log_dloss):
         # weights -= eta * update
 
         if fit_intercept:
-            intercept -= eta * gradient
+            intercept_sum_gradient += gradient - intercept_gradient_memory[idx]
+            intercept_gradient_memory[idx] = gradient
+            intercept -= eta * intercept_sum_gradient / len(seen)
 
     return weights, intercept
 
