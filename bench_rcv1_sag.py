@@ -9,10 +9,11 @@ from sklearn import cross_validation
 from sklearn.utils import shuffle
 from sklearn.base import clone
 from sklearn.linear_model import (SGDClassifier, SAGClassifier,
-                                  SGDRegressor, SAGRegressor)
+                                  SGDRegressor, SAGRegressor,
+                                  LogisticRegression)
 
-# data = io.loadmat('rcv1_train.binary.mat')
-data = io.loadmat('covtype.libsvm.binary.mat')
+data = io.loadmat('rcv1_train.binary.mat')
+# data = io.loadmat('covtype.libsvm.binary.mat')
 
 X, y = data['X'], data['y'].ravel()
 X, y = shuffle(X, y, random_state=42)
@@ -27,8 +28,8 @@ X = X.astype(np.float64)
 y = y.astype(np.int)
 
 # make it -1 and 1 for tracking log loss
-y[y == 1] = -1
-y[y == 2] = 1
+# y[y == 1] = -1
+# y[y == 2] = 1
 
 # Split data
 n_samples, n_features = X.shape
@@ -42,25 +43,25 @@ X_train, y_train = X, y
 # alpha = .0000001
 # eta = 4.0
 
-alpha = 1.0 / n_samples
-eta = .00000004
-pobj = []
+alpha = 1 / n_samples
 
-# n_iter_range = list(range(1, 100, 5))
+iter_range = list(range(1, 20, 2))
 # tol_range = [.01, .001, .0001, .00001]
-tol_range = [.01, .001, 0.0001]
-log_tols = np.log10(tol_range)
+# tol_range = [.01, .001, 0.0001]
+# tol_range = [.01]
+# log_tols = np.log10(tol_range)
 
 
 clfs = [
     # ("SGDClassifier", SGDClassifier(eta0=eta, alpha=alpha, loss='log',
     #  learning_rate='constant'), [], [], [], []),
-    # ("ASGDClassifier", SGDClassifier(eta0=eta, alpha=alpha, loss='log',
-    #  learning_rate='constant', average=True), [], [], [], []),
-    ("SAGClassifier", SAGClassifier(eta0='auto', alpha=alpha, random_state=42,
-                                    max_iter=20), [], [], [], []),
+    ("LogisticRegression", LogisticRegression(C=1.0/alpha, tol=.0000000001), [], [], []),
+    ("SAGClassifier", SAGClassifier(eta0='auto', tol=.0000000001, alpha=alpha,
+                                    random_state=42,
+                                    ), [], [], []),
     ]
 plt.close('all')
+
 
 def get_pobj(clf):
     w = clf.coef_.ravel()
@@ -69,45 +70,29 @@ def get_pobj(clf):
     p += alpha * np.dot(w, w) / 2.
     return p
 
-# print('computing pobj optimal')
-# pobj_opt = get_pobj(SAGClassifier(eta0='auto',
-#                                   alpha=alpha,
-#                                   tol=.0000099,
-#                                   max_iter=100000,
-#                                   verbose=True).fit(X_train, y_train))
-# print('done !', pobj_opt)
-# pobj_opt = 0.0
+for name, clf, score, std, seconds in clfs:
+    for i, itr in enumerate(iter_range):
+        clf = clone(clf)
+        clf.set_params(max_iter=itr, random_state=42)
+        st = time.time()
+        scores = cross_validation.cross_val_score(clf, X, y, cv=4)
+        end = time.time()
+        seconds.append(end - st)
+        print("time for cv: %.8f seconds" % (end - st))
+        print("score mean:", scores.mean())
+        print("std:", scores.std())
+        print("")
+        print("")
+        score.append(scores.mean())
+        std.append(scores.std())
 
-# for name, clf, pobj, score, std, seconds in clfs:
-#     for i, tol in enumerate(tol_range):
-#         print("tol:", tol)
-#         clf = clone(clf)
-#         clf.set_params(tol=tol, random_state=42)
-#         scores = cross_validation.cross_val_score(clf, X, y, cv=4)
-#         print("score mean:", scores.mean())
-#         print("std:", scores.std())
-#         print("")
-#         print("")
-#         score.append(scores.mean())
-#         std.append(scores.std())
-
-#     print("")
-
-for name, clf, pobj, score, std, seconds in clfs:
-    clf = clone(clf)
-    clf.set_params(random_state=42)
-    start = time.time()
-    clf.fit(X, y)
-    end = time.time()
-    print("the time to fit:", end - start)
-    print("pobj", get_pobj(clf))
     print("")
 
-# for name, clf, pobj, score, std, seconds in clfs:
-#     plt.errorbar(-log_tols, score, std, label=name)
-#     plt.legend(loc="lower right")
-#     plt.xlabel("-log10(tol)")
-#     plt.ylabel("mean cv 4 score + std")
-# plt.xlim([1, 5])
-# plt.show()
-# plt.close('all')
+
+for name, clf, score, std, seconds in clfs:
+    plt.errorbar(seconds, score, std, label=name)
+    plt.legend(loc="lower right")
+    plt.xlabel("seconds")
+    plt.ylabel("mean cv 4 score + std")
+plt.show()
+plt.close('all')
