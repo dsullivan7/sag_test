@@ -45,6 +45,8 @@ def sag(X, y, eta, alpha, n_iter=5, fit_intercept=True, dloss=log_dloss):
         # SGD
         # weights -= eta * update
 
+        # intercept -= eta * gradient
+
         if fit_intercept:
             intercept_sum_gradient += gradient - intercept_gradient_memory[idx]
             intercept_gradient_memory[idx] = gradient
@@ -59,7 +61,7 @@ def sag_sparse(X, y, eta, alpha, n_iter=5, fit_intercept=True, dloss=log_dloss):
         weights = np.zeros(n_features)
         sum_gradient = np.zeros(n_features)
         last_updated = np.zeros(n_features, dtype=np.int)
-        gradient_memory = np.zeros((n_samples, n_features))
+        gradient_memory = np.zeros(n_samples)
         intercept = 0.0
         wscale = 1.0
         seen = set()
@@ -88,8 +90,8 @@ def sag_sparse(X, y, eta, alpha, n_iter=5, fit_intercept=True, dloss=log_dloss):
                 gradient = dloss(p, y[idx])
 
                 update = entry * gradient
-                sum_gradient += update - gradient_memory[idx]
-                gradient_memory[idx] = update
+                sum_gradient += update - (gradient_memory[idx] * entry)
+                gradient_memory[idx] = gradient
 
                 wscale *= (1.0 - alpha * eta)
                 if counter == 0:
