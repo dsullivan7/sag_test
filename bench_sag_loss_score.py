@@ -12,9 +12,13 @@ def get_pobj(w, intercept, myX, myy):
     p += alpha * w.dot(w) / 2.
     return p
 
+print("loading training data")
 X, y = load_svmlight_file("rcv1.train.txt.gz")
+print("done!")
 n_samples, n_features = X.shape
+print("loading test data")
 X_test, y_test = load_svmlight_file("rcv1.test.txt.gz")
+print("done!")
 y = y.ravel()
 y_test = y_test.ravel()
 
@@ -26,12 +30,21 @@ y_test = y_test.astype(np.int)
 
 alpha = 1.0 / n_samples
 iter_range = list(range(1, 11, 2))
+lbfgs_iter_range = list(range(1, 101, 20))
 
 tol = 1.0e-8
 clfs = [
-    ("LogisticRegression",
+    ("LR-newton-cg",
      LogisticRegression(C=1.0 / (n_samples * alpha), tol=tol,
                         solver="newton-cg", fit_intercept=True, verbose=1),
+     iter_range, [], [], []),
+    ("LR-lbfgs",
+     LogisticRegression(C=1.0 / (n_samples * alpha), tol=tol,
+                        solver="lbfgs", fit_intercept=True, verbose=1),
+     lbfgs_iter_range, [], [], []),
+    ("LR-liblinear",
+     LogisticRegression(C=1.0 / (n_samples * alpha), tol=tol,
+                        solver="liblinear", fit_intercept=True, verbose=1),
      iter_range, [], [], []),
     ("SAGClassifier",
      SAGClassifier(eta0='auto', tol=tol, alpha=alpha,
@@ -41,6 +54,7 @@ clfs = [
 plt.close('all')
 
 for name, clf, iter_range, seconds, scores, pobj in clfs:
+    print("training %s" % name)
     for i, itr in enumerate(iter_range):
         clf = clone(clf)
         clf.set_params(max_iter=itr, random_state=42)
